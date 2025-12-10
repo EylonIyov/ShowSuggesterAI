@@ -14,6 +14,7 @@ dotenv.load_dotenv()
 # Add Modules directory to path
 sys.path.append(str(Path(__file__).parent.parent / "Modules"))
 from embeddings import build_description_embeddings
+from llm_generator import generate_creative_shows
 
 
 def create_embeddings_pickle(csv_path: str, pickle_path: str):
@@ -274,6 +275,21 @@ def main():#Appllication entry point
     for i, (show_title, similarity_score) in enumerate(recommendations, 1):
         similarity_percent = similarity_score * 100
         print(f"{i}. {show_title} (similarity: {similarity_percent:.1f}%)")
+    
+    # Get descriptions for the matched shows
+    matched_show_descriptions = [
+        description_embeded[show][0] for show in matched_shows
+    ]
+    
+    # Generate creative shows using LLM
+    print("\nGenerating creative show recommendations...")
+    creative_output = generate_creative_shows(
+        matched_shows,
+        matched_show_descriptions,
+        recommendations
+    )
+    
+    print(f"\n{creative_output}")
         
             
 if __name__ == "__main__":
