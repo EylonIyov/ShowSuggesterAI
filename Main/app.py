@@ -273,7 +273,7 @@ def main():#Appllication entry point
     # Display recommendations to the user
     print("Here are the tv shows that i think you would love:")
     for i, (show_title, similarity_score) in enumerate(recommendations, 1):
-        similarity_percent = similarity_score * 135
+        similarity_percent = min(similarity_score * 135, 100)  # Dudu This is me and not AI, i wanted to adjsust the scale to look good.
         print(f"{i}. {show_title} (similarity: {similarity_percent:.1f}%)")
     
     # Get descriptions for the matched shows
