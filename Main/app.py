@@ -272,7 +272,7 @@ def main():#Appllication entry point
     # Display recommendations to the user
     print("Here are the tv shows that i think you would love:")
     for i, (show_title, similarity_score) in enumerate(recommendations, 1):
-        similarity_percent = similarity_score * 100
+        similarity_percent = similarity_score * 135
         print(f"{i}. {show_title} (similarity: {similarity_percent:.1f}%)")
         
             
