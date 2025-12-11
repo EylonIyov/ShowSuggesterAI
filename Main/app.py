@@ -14,7 +14,7 @@ dotenv.load_dotenv()
 # Add Modules directory to path
 sys.path.append(str(Path(__file__).parent.parent / "Modules"))
 from embeddings import build_description_embeddings
-from llm_generator import generate_creative_shows
+from llm_generator import generate_creative_shows, generate_show_images, open_generated_images
 
 
 def create_embeddings_pickle(csv_path: str, pickle_path: str):
@@ -283,13 +283,26 @@ def main():#Appllication entry point
     
     # Generate creative shows using LLM
     print("\nGenerating creative show recommendations...")
-    creative_output = generate_creative_shows(
+    creative_output, shows_data = generate_creative_shows(
         matched_shows,
         matched_show_descriptions,
         recommendations
     )
     
     print(f"\n{creative_output}")
+    
+    # Generate images for the creative shows
+    print("\nGenerating promotional images for the shows...")
+    try:
+        image_paths = generate_show_images(shows_data)
+        print(f"\nShow #1 image saved to: {image_paths.get('show1_image_path', 'Generation failed')}")
+        print(f"Show #2 image saved to: {image_paths.get('show2_image_path', 'Generation failed')}")
+        
+        # Open the generated images
+        print("\nOpening generated images...")
+        open_generated_images(image_paths)
+    except RuntimeError as e:
+        print(f"Could not generate images: {str(e)}")
         
             
 if __name__ == "__main__":

@@ -1,9 +1,12 @@
 """Module for generating creative TV show recommendations using LLM."""
 
 import os
-from typing import List, Tuple
+from typing import List, Tuple, Dict
+from pathlib import Path
 import dotenv
 from openai import OpenAI
+from google import genai
+from google.genai import types
 
 dotenv.load_dotenv()
 
@@ -12,7 +15,7 @@ def generate_creative_shows(
     user_shows: List[str],
     user_show_descriptions: List[str],
     recommended_shows: List[Tuple[str, float]],
-) -> str:
+) -> Tuple[str, Dict[str, str]]:
     """Generate two creative fictional shows based on user preferences.
     
     Args:
@@ -21,7 +24,8 @@ def generate_creative_shows(
         recommended_shows: List of tuples (show_name, similarity_score) from recommendations.
     
     Returns:
-        A formatted string with two creative show recommendations and descriptions.
+        Tuple of (formatted_output_string, shows_data_dict) where shows_data_dict contains
+        show1_name, show1_desc, show2_name, show2_desc.
     """
     # Initialize OpenAI client
     api_key = os.getenv("OPENAI_API_KEY")
@@ -94,7 +98,7 @@ Make sure the descriptions are engaging and capture the essence of what makes th
         f"Here are also the 2 tv show ads. Hope you like them!"
     )
     
-    return output_message
+    return output_message, shows_data
 
 
 def _parse_llm_response(response_text: str) -> dict:
@@ -126,3 +130,110 @@ def _parse_llm_response(response_text: str) -> dict:
             result["show2_desc"] = line.split("SHOW2_DESC:", 1)[1].strip()
     
     return result
+
+
+def generate_show_images(shows_data: Dict[str, str]) -> Dict[str, str]:
+    """Generate images for the creative shows using Google Gemini API.
+    
+    Args:
+        shows_data: Dictionary with keys show1_name, show1_desc, show2_name, show2_desc
+    
+    Returns:
+        Dictionary with image file paths: {show1_image_path, show2_image_path}
+    """
+    # Initialize Gemini client
+    client = genai.Client()
+    
+    # Create output directory for images
+    output_dir = Path(__file__).parent.parent / "generated_images"
+    output_dir.mkdir(exist_ok=True)
+    
+    result = {}
+    
+    # Generate image for Show #1
+    print("Generating image for Show #1...")
+    show1_prompt = f"Create a professional promotional movie poster for the TV show '{shows_data['show1_name']}':\n{shows_data['show1_desc']}"
+    show1_image_path = _generate_and_save_image_gemini(client, show1_prompt, output_dir, shows_data['show1_name'])
+    result["show1_image_path"] = show1_image_path
+    
+    # Generate image for Show #2
+    print("Generating image for Show #2...")
+    show2_prompt = f"Create a professional promotional movie poster for the TV show '{shows_data['show2_name']}':\n{shows_data['show2_desc']}"
+    show2_image_path = _generate_and_save_image_gemini(client, show2_prompt, output_dir, shows_data['show2_name'])
+    result["show2_image_path"] = show2_image_path
+    
+    return result
+
+
+def _generate_and_save_image_gemini(client: genai.Client, prompt: str, output_dir: Path, show_name: str) -> str:
+    """Generate an image using Google Gemini API and save it to disk.
+    
+    Args:
+        client: Gemini client instance.
+        prompt: Text prompt for image generation.
+        output_dir: Directory to save the image in.
+        show_name: Name of the show (used for filename).
+    
+    Returns:
+        Path to the saved image file.
+    
+    Raises:
+        RuntimeError: If image generation or saving fails.
+    """
+    try:
+        # Call Gemini API to generate image
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-image",
+            contents=[prompt],
+        )
+        
+        # Extract and save the image
+        for part in response.parts:
+            if part.inline_data is not None:
+                # Get the image and save it
+                image = part.as_image()
+                
+                # Create a safe filename from the show name
+                safe_name = "".join(c for c in show_name if c.isalnum() or c in (' ', '_', '-')).rstrip()
+                safe_name = safe_name.replace(" ", "_")
+                filename = f"{safe_name}.png"
+                file_path = output_dir / filename
+                
+                # Save the image
+                image.save(str(file_path))
+                print(f"Image saved: {file_path}")
+                return str(file_path)
+        
+        raise RuntimeError("No image data found in Gemini API response")
+        
+    except Exception as e:
+        raise RuntimeError(f"Failed to generate image with Gemini API: {str(e)}")
+
+
+
+
+
+def open_generated_images(image_paths: Dict[str, str]) -> None:
+    """Open the generated images in the default image viewer.
+    
+    Args:
+        image_paths: Dictionary with image file paths (show1_image_path, show2_image_path).
+    """
+    import subprocess
+    import sys
+    
+    for key, image_path in image_paths.items():
+        if image_path and Path(image_path).exists():
+            try:
+                if sys.platform == "darwin":  # macOS
+                    subprocess.Popen(["open", image_path])
+                elif sys.platform == "win32":  # Windows
+                    os.startfile(image_path)
+                elif sys.platform == "linux":  # Linux
+                    subprocess.Popen(["xdg-open", image_path])
+                print(f"Opened {key}: {image_path}")
+            except Exception as e:
+                print(f"Could not open {image_path}: {str(e)}")
+        else:
+            print(f"Image file not found: {image_path}")
+
