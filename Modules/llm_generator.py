@@ -10,6 +10,8 @@ from google.genai import types
 
 dotenv.load_dotenv()
 
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+
 
 def generate_creative_shows(
     user_shows: List[str],
@@ -142,7 +144,7 @@ def generate_show_images(shows_data: Dict[str, str]) -> Dict[str, str]:
         Dictionary with image file paths: {show1_image_path, show2_image_path}
     """
     # Initialize Gemini client
-    client = genai.Client()
+    client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
     
     # Create output directory for images
     output_dir = Path(__file__).parent.parent / "generated_images"
@@ -220,18 +222,26 @@ def open_generated_images(image_paths: Dict[str, str]) -> None:
         image_paths: Dictionary with image file paths (show1_image_path, show2_image_path).
     """
     import subprocess
-    import sys
+    import platform
     
     for key, image_path in image_paths.items():
         if image_path and Path(image_path).exists():
             try:
-                if sys.platform == "darwin":  # macOS
-                    subprocess.Popen(["open", image_path])
-                elif sys.platform == "win32":  # Windows
-                    os.startfile(image_path)
-                elif sys.platform == "linux":  # Linux
-                    subprocess.Popen(["xdg-open", image_path])
-                print(f"Opened {key}: {image_path}")
+                abs_path = str(Path(image_path).resolve())
+                system = platform.system()
+                
+                if system == "Darwin":  # macOS
+                    subprocess.run(["open", abs_path], check=True)
+                elif system == "Windows":
+                    # Use subprocess with shell=True for Windows
+                    subprocess.run(["cmd", "/c", "start", "", abs_path], check=True)
+                elif system == "Linux":
+                    subprocess.run(["xdg-open", abs_path], check=True)
+                else:
+                    print(f"Unsupported platform: {system}")
+                    continue
+                    
+                print(f"Opened {key}: {abs_path}")
             except Exception as e:
                 print(f"Could not open {image_path}: {str(e)}")
         else:
